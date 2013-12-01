@@ -1,5 +1,4 @@
 <?php
-ini_set("display_errors","on");
 require_once __DIR__ . '/config.php';
 
 $db = new PDO('mysql:host='.MONITOR_MYSQL_HOST.';dbname='.MONITOR_MYSQL_DB.';charset=utf8', MONITOR_MYSQL_USER, MONITOR_MYSQL_PASSWORD);
