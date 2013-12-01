@@ -22,7 +22,7 @@ function sendSMS($message)
 }
 
 
-function notify($row)
+function notify($row,$newhash,$dt)
 {
 	global $db;
 	if($row['p_sms']==1)
@@ -49,6 +49,13 @@ function notify($row)
 		$stmt->execute();
 	}
 
+		$stmt = $db->prepare("UPDATE pages SET p_date=:ndate,p_lasthash=:hash WHERE p_id=:id");
+		$stmt->bindValue(':ndate', (($dt != NULL) ? $dt->format('Y-m-d H:i:s') : ''), PDO::PARAM_STR);
+		$stmt->bindValue(':hash', $newhash, PDO::PARAM_STR);
+		$stmt->bindValue(':id', $row['p_id'], PDO::PARAM_STR);
+		$stmt->execute();
+
+
 }
 
 
@@ -59,49 +66,26 @@ $stmt = $db->query('SELECT * FROM pages WHERE p_completed=0');
 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt->closeCursor();
 
-$array_ids_updated = array();
 foreach ($rows as $row)
 {
 
-
 		if(strtotime($row['p_lastcheck'])+(60*$row['p_often']) > time())
 			continue; 
-
-		if(md5(file_get_contents($row['p_url'])) != $row['p_lasthash'])
-		{
-			notify($row);
-			continue;
-		}
-
-
+		
+		$newhash = md5(file_get_contents($row['p_url']));
+		$dt=null;
 		$h = get_headers($row['p_url'], 1);
+
 		if(array_key_exists('Last-Modified', $h))
-		{
 			$dt = new \DateTime($h['Last-Modified']);
 
-			if($dt->format('Y-m-d H:i:s') != $row['p_date'])
-			{
-				notify($row);
-				continue;
-			}
+		if($newhash != $row['p_lasthash'] || ($dt != null && $dt->format('Y-m-d H:i:s') != $row['p_date']) )
+			notify($row,$newhash,$dt);
 
-		}
 		
-		$array_ids_updated[] = $row['p_id'];
 }
-	
-		if(empty($array_ids_updated))
-		die();
-	
-	$sql = 'UPDATE `pages` SET `p_lastcheck`=NOW() WHERE';
-	
-	foreach ($array_ids_updated as $v)
-		$sql .= ' `p_id`='.(int) ($v).' OR ';	
 
-	$sql = substr($sql, 0, strlen($sql)-4);	
-
-
-	$db->query($sql);	
+$db->query('UPDATE `pages` SET `p_lastcheck`=NOW()');	
 
 
 
